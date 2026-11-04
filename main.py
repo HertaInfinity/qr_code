@@ -2,7 +2,7 @@ import os
 import io
 import uuid
 from datetime import datetime
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from supabase import create_client
 import qrcode
 from PIL import Image
@@ -24,6 +24,10 @@ def health_check():
         'service': 'QR Code Generator',
         'timestamp': datetime.utcnow().isoformat()
     })
+
+@app.route('/app')
+def frontend():
+    return send_from_directory('static', 'index.html')
 
 @app.route('/generate', methods=['POST'])
 def generate_qr_code():
