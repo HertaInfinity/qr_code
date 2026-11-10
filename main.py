@@ -67,6 +67,7 @@ def generate_qr_code():
         # Upload to Cloud Storage with metadata
         bucket.upload(filename, img_bytes.getvalue(), {"content-type": "image/png"})
         public_url = bucket.get_public_url(filename)
+        supabase.table("qr_codes").insert({"filename": filename, "text": text_to_encode}).execute()
         
         return jsonify({
             'success': True,
