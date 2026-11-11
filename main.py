@@ -86,15 +86,18 @@ def list_qr_codes():
     try:
         qr_codes = []
         
-        for obj in bucket.list():
-            name = obj['name']
-            if name.startswith('qr-') and name.endswith('.png'):
-                qr_codes.append({
-                    'filename': name,
-                    'url': bucket.get_public_url(name),
-                    'created': obj.get('created_at'),
-                    'size': (obj.get('metadata') or {}).get('size')
-                })
+        rows = (supabase.table("qr_codes")
+                .select("filename, text, created_at")
+                .order("created_at", desc=True)
+                .limit(100)
+                .execute().data)
+        for row in rows:
+            qr_codes.append({
+                'filename': row['filename'],
+                'text': row['text'],
+                'url': bucket.get_public_url(row['filename']),
+                'created': row['created_at'],
+            })  
         
         return jsonify({
             'qr_codes': qr_codes,
