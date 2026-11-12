@@ -3,250 +3,233 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>QR Code Generator</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<title>QR Attendance</title>
 <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700;800&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #eef1f6;
-    --surface: #ffffff;
-    --ink: #14213d;
-    --muted: #5b6478;
-    --line: #d5dbe7;
-    --accent: #2b50ff;
-    --accent-ink: #ffffff;
-    --error: #b3261e;
-    --font: "Schibsted Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  }
-  * { box-sizing: border-box; }
-  html { background: var(--bg); }
-  body {
-    margin: 0; color: var(--ink); font-family: var(--font);
-    font-size: 1rem; line-height: 1.5;
-  }
-  main { max-width: 64rem; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
-  h1 { font-size: clamp(2rem, 5vw, 3.25rem); line-height: 1.05; margin: 0 0 .5rem; font-weight: 800; letter-spacing: -0.02em; }
-  h2 { font-size: 1.25rem; margin: 0; font-weight: 700; }
-  .lede { color: var(--muted); margin: 0 0 2rem; max-width: 52ch; }
-
-  .workspace { display: grid; gap: 1.5rem; grid-template-columns: 1fr; align-items: start; }
-  @media (min-width: 760px) { .workspace { grid-template-columns: 1fr 22rem; } }
-
-  form { display: flex; flex-direction: column; gap: .75rem; }
-  label { font-weight: 700; }
-  textarea {
-    width: 100%; min-height: 9rem; resize: vertical; padding: .85rem 1rem;
-    font: inherit; color: var(--ink); background: var(--surface);
-    border: 2px solid var(--line); border-radius: 8px;
-  }
-  textarea:focus-visible, button:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-  textarea:focus-visible { border-color: var(--accent); outline-offset: 0; }
-  .meta { display: flex; justify-content: space-between; gap: 1rem; color: var(--muted); font-size: .9rem; }
-
-  button {
-    font: inherit; font-weight: 700; cursor: pointer; border-radius: 8px;
-    padding: .75rem 1.25rem; border: 2px solid var(--ink); background: var(--surface); color: var(--ink);
-  }
-  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-  button:disabled { opacity: .6; cursor: progress; }
-  .actions { display: flex; flex-wrap: wrap; gap: .75rem; }
-
-  #status { min-height: 1.5rem; margin: 0; color: var(--muted); }
-  #status.error { color: var(--error); font-weight: 500; }
-
-  .frame {
-    background: var(--surface); border: 2px solid var(--ink); border-radius: 12px; padding: 1.25rem;
-  }
-  .preview { aspect-ratio: 1; display: grid; place-items: center; }
-  .preview img, .preview svg { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
-  .result { margin-top: 1rem; display: none; }
-  .result.show { display: block; }
-  .result p { margin: 0 0 .75rem; color: var(--muted); font-size: .9rem; overflow-wrap: anywhere; }
-
-  .gallery-head { display: flex; align-items: baseline; justify-content: space-between; margin: 3rem 0 1rem; }
-  #count { color: var(--muted); }
-  #gallery { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(min(21rem, 100%), 1fr)); }
-  #gallery li { display: flex; gap: 1rem; align-items: flex-start; background: var(--surface); border: 2px solid var(--line); border-radius: 8px; padding: .75rem; }
-  #gallery .info { flex: 1; min-width: 0; }
-  #gallery .text { margin: 0 0 .5rem; max-height: 7.5rem; overflow-y: auto; overflow-wrap: anywhere; white-space: pre-wrap; }
-  #gallery time { font-size: .8rem; color: var(--muted); }
-  #gallery a { flex: none; width: 7.5rem; border: 2px solid var(--line); border-radius: 6px; padding: .25rem; }
-  #gallery a:hover { border-color: var(--ink); }
-  #gallery img { width: 100%; aspect-ratio: 1; display: block; image-rendering: pixelated; }
-  #empty { color: var(--muted); }
-
-  @media (prefers-reduced-motion: no-preference) {
-    button { transition: transform .08s ease; }
-    button:active:not(:disabled) { transform: translateY(1px); }
-  }
+  :root { --bg:#eef1f6; --surface:#fff; --ink:#14213d; --muted:#5b6478; --line:#d5dbe7; --accent:#2b50ff; --error:#b3261e;
+          --font:"Schibsted Grotesk",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--font); line-height:1.5; }
+  main { max-width:60rem; margin:0 auto; padding:1.5rem 1.25rem 4rem; }
+  header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; }
+  h1 { font-size:1.5rem; margin:0; font-weight:800; letter-spacing:-.01em; }
+  h2 { font-size:1.15rem; margin:0 0 .75rem; }
+  label { display:block; font-weight:700; margin:.75rem 0 .25rem; }
+  input, select { width:100%; font:inherit; padding:.7rem .9rem; border:2px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink); }
+  button { font:inherit; font-weight:700; cursor:pointer; border-radius:8px; padding:.7rem 1.1rem; border:2px solid var(--ink); background:var(--surface); color:var(--ink); }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button:disabled { opacity:.6; cursor:progress; }
+  :is(input,select,button):focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+  .card { background:var(--surface); border:2px solid var(--ink); border-radius:12px; padding:1.25rem; }
+  .narrow { max-width:24rem; margin:3rem auto 0; }
+  #note { min-height:1.5rem; margin:0 0 1rem; color:var(--muted); }
+  #note.error, .error { color:var(--error); font-weight:500; }
+  .grid { display:grid; gap:1.5rem; grid-template-columns:1fr; align-items:start; }
+  @media (min-width:760px) { .grid { grid-template-columns:22rem 1fr; } }
+  #qr { width:100%; aspect-ratio:1; display:block; image-rendering:pixelated; }
+  .meter { height:8px; background:var(--line); border-radius:4px; margin:.75rem 0 .25rem; overflow:hidden; }
+  #bar { height:100%; width:100%; background:var(--accent); transition:width .25s linear; }
+  .row { display:flex; justify-content:space-between; color:var(--muted); font-size:.9rem; }
+  .actions { display:flex; gap:.75rem; flex-wrap:wrap; margin-top:1rem; }
+  #present { list-style:none; margin:0; padding:0; }
+  #present li { display:flex; justify-content:space-between; gap:1rem; padding:.6rem 0; border-bottom:1px solid var(--line); }
+  #present time { color:var(--muted); }
+  .head { display:flex; justify-content:space-between; align-items:baseline; }
 </style>
 </head>
 <body>
 <main>
-  <h1>QR code generator</h1>
-  <p class="lede">Paste a link or any text and get a QR code you can download or share.</p>
+  <header><h1>QR Attendance</h1><button id="signout" hidden>Sign out</button></header>
+  <p id="note" role="status" aria-live="polite"></p>
 
-  <div class="workspace">
-    <form id="form" novalidate>
-      <label for="text">Text or link to encode</label>
-      <textarea id="text" maxlength="2000" placeholder="https://example.com" aria-describedby="status"></textarea>
-      <div class="meta"><span>Up to 2000 characters</span><span id="chars">0 / 2000</span></div>
-      <div class="actions">
-        <button class="primary" id="go" type="submit">Generate QR code</button>
-        <button type="button" id="clear">Clear</button>
-      </div>
-      <p id="status" role="status" aria-live="polite"></p>
+  <section id="v-login" class="view card narrow" hidden>
+    <h2>Sign in</h2>
+    <form id="login">
+      <label for="email">Email</label><input id="email" type="email" autocomplete="username" required>
+      <label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required>
+      <div class="actions"><button class="primary" type="submit">Sign in</button></div>
     </form>
+  </section>
 
-    <section aria-label="Preview">
-      <div class="frame">
-        <div class="preview" id="preview">
-          <svg viewBox="0 0 21 21" role="img" aria-label="Empty QR code placeholder">
-            <g fill="none" stroke="#14213d" stroke-width="1">
-              <rect x="0.5" y="0.5" width="6" height="6"/><rect x="14.5" y="0.5" width="6" height="6"/><rect x="0.5" y="14.5" width="6" height="6"/>
-            </g>
-            <g fill="#14213d">
-              <rect x="2" y="2" width="3" height="3"/><rect x="16" y="2" width="3" height="3"/><rect x="2" y="16" width="3" height="3"/>
-            </g>
-          </svg>
-        </div>
-      </div>
-      <div class="result" id="result">
-        <p id="filename"></p>
+  <section id="v-teacher" class="view" hidden>
+    <div id="setup" class="card narrow">
+      <h2>Start a class session</h2>
+      <label for="class">Class</label><select id="class"></select>
+      <div class="actions"><button class="primary" id="start">Start session</button></div>
+    </div>
+    <div id="live" class="grid" hidden>
+      <div class="card">
+        <img id="qr" alt="Attendance QR code. It changes every 30 seconds.">
+        <div class="meter"><div id="bar"></div></div>
+        <div class="row"><span>Code refreshes in</span><span id="secs"></span></div>
         <div class="actions">
-          <button type="button" id="download">Download PNG</button>
-          <button type="button" id="copy">Copy link</button>
+          <button id="copylink">Copy scan link</button>
+          <button id="end">End session</button>
         </div>
       </div>
-    </section>
-  </div>
+      <div class="card">
+        <div class="head"><h2>Present</h2><span id="count"></span></div>
+        <ul id="present"></ul>
+      </div>
+    </div>
+  </section>
 
-  <div class="gallery-head">
-    <h2>Recent QR codes</h2>
-    <span id="count"></span>
-  </div>
-  <p id="empty" hidden>No QR codes yet. Generate one above.</p>
-  <ul id="gallery"></ul>
+  <section id="v-student" class="view card narrow" hidden>
+    <h2>Mark attendance</h2>
+    <p id="result">Scan your teacher’s QR code with your phone camera to mark yourself present.</p>
+  </section>
+
+  <section id="v-other" class="view card narrow" hidden>
+    <h2>Admin</h2><p>The admin page is not built yet.</p>
+  </section>
 </main>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <script>
+  const SB_URL = 'https://lhopljlhkrnooijhwuft.supabase.co';
+  const SB_ANON = 'sb_publishable_zP2DZArAHD0CnMASmijATg_rhu1k9Tp'; // public key, safe in the browser
+  const sb = supabase.createClient(SB_URL, SB_ANON);
   const $ = (s) => document.querySelector(s);
-  const form = $('#form'), input = $('#text'), goBtn = $('#go'), statusEl = $('#status');
-  let current = null; // { url, filename }
+  const params = new URLSearchParams(location.search);
+  const scan = { s: params.get('s'), t: params.get('t') };
+  let sid = null, timer = null, channel = null, expiresAt = 0, refreshing = false, scanUrl = '';
 
-  function setStatus(msg, isError = false) {
-    statusEl.textContent = msg;
-    statusEl.classList.toggle('error', isError);
+  function note(text, isError = false) { const n = $('#note'); n.textContent = text; n.classList.toggle('error', isError); }
+  function show(id) {
+    document.querySelectorAll('.view').forEach((v) => { v.hidden = v.id !== id; });
+    $('#signout').hidden = id === 'v-login';
   }
 
-  // Wraps fetch: shows a wake-up message if the free-tier server is slow to respond.
-  async function api(path, options) {
-    const slow = setTimeout(
-      () => setStatus('Waking up the server. The first request can take up to a minute.'), 4000);
+  async function api(path, opts = {}) {
+    const { data } = await sb.auth.getSession();
+    const slow = setTimeout(() => note('Waking up the server. The first request can take up to a minute.'), 4000);
     try {
-      const res = await fetch(path, options);
-      let data = {};
-      try { data = await res.json(); } catch (e) { /* non-JSON response */ }
-      if (!res.ok) throw new Error(data.error || 'Request failed (' + res.status + ')');
-      return data;
-    } finally {
-      clearTimeout(slow);
-    }
-  }
-
-  input.addEventListener('input', () => { $('#chars').textContent = input.value.length + ' / 2000'; });
-
-  $('#clear').addEventListener('click', () => {
-    input.value = ''; $('#chars').textContent = '0 / 2000'; setStatus(''); input.focus();
-  });
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const text = input.value.trim();
-    if (!text) { setStatus('Enter some text or a link first.', true); input.focus(); return; }
-
-    goBtn.disabled = true;
-    setStatus('Generating…');
-    try {
-      const data = await api('/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text })
+      const res = await fetch('/api' + path, {
+        ...opts,
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (data.session?.access_token || '') }
       });
-      showResult(data.qr_code_url, data.filename);
-      setStatus('QR code ready.');
-      loadGallery();
-    } catch (err) {
-      setStatus(err.message + '. Check your connection and try again.', true);
-    } finally {
-      goBtn.disabled = false;
-    }
-  });
-
-  function showResult(url, filename) {
-    current = { url, filename };
-    const img = new Image();
-    img.alt = 'Generated QR code';
-    img.src = url;
-    $('#preview').replaceChildren(img);
-    $('#filename').textContent = filename;
-    $('#result').classList.add('show');
-    $('#copy').textContent = 'Copy link';
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'Request failed (' + res.status + ')');
+      return body;
+    } finally { clearTimeout(slow); }
   }
 
-  $('#download').addEventListener('click', async () => {
-    if (!current) return;
+  // ---------- auth ----------
+  async function init() {
+    const { data } = await sb.auth.getSession();
+    if (!data.session) return show('v-login');
     try {
-      const blob = await (await fetch(current.url)).blob();
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = current.filename;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    } catch (err) {
-      window.open(current.url, '_blank', 'noopener'); // fallback: open image in a new tab
-    }
+      const me = await api('/me');
+      note('');
+      if (me.role === 'teacher') { show('v-teacher'); loadClasses(); }
+      else if (me.role === 'student') { show('v-student'); if (scan.s && scan.t) markAttendance(); }
+      else show('v-other');
+    } catch (e) { note(e.message, true); show('v-login'); }
+  }
+
+  $('#login').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    note('Signing in…');
+    const { error } = await sb.auth.signInWithPassword({ email: $('#email').value.trim(), password: $('#password').value });
+    if (error) return note(error.message, true);
+    init();
   });
 
-  $('#copy').addEventListener('click', async () => {
-    if (!current) return;
+  $('#signout').addEventListener('click', async () => { stopSession(); await sb.auth.signOut(); note(''); show('v-login'); });
+
+  // ---------- teacher ----------
+  async function loadClasses() {
+    const { data, error } = await sb.from('classes').select('id,name').order('name');
+    if (error) return note(error.message, true);
+    const sel = $('#class');
+    sel.replaceChildren();
+    for (const c of data) { const o = document.createElement('option'); o.value = c.id; o.textContent = c.name; sel.append(o); }
+    $('#start').disabled = !data.length;
+    if (!data.length) note('No classes yet. Ask an admin to create one for you.');
+  }
+
+  $('#start').addEventListener('click', async () => {
+    $('#start').disabled = true;
+    note('Starting session…');
     try {
-      await navigator.clipboard.writeText(current.url);
-      $('#copy').textContent = 'Link copied';
-    } catch (err) {
-      setStatus('Could not copy the link. Copy it from the address bar after opening the image.', true);
-    }
+      const r = await api('/sessions', { method: 'POST', body: JSON.stringify({ class_id: $('#class').value }) });
+      sid = r.session_id;
+      $('#setup').hidden = true; $('#live').hidden = false;
+      await refreshToken();
+      note('');
+      loadList();
+      channel = sb.channel('att-' + sid)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'attendance', filter: 'session_id=eq.' + sid }, loadList)
+        .subscribe();
+      timer = setInterval(tick, 250);
+    } catch (e) { note(e.message, true); $('#start').disabled = false; }
   });
 
-  async function loadGallery() {
-    for (const item of items) {
+  async function refreshToken() {
+    try {
+      const r = await api('/sessions/' + sid + '/token');
+      expiresAt = Date.now() + r.expires_in * 1000;
+      scanUrl = location.origin + '/app?s=' + sid + '&t=' + r.token;
+      const qr = qrcode(0, 'M');
+      qr.addData(scanUrl); qr.make();
+      $('#qr').src = qr.createDataURL(8, 2);
+    } catch (e) { note(e.message, true); expiresAt = Date.now() + 3000; } // retry in 3 s
+  }
+
+  function tick() {
+    const left = Math.max(0, (expiresAt - Date.now()) / 1000);
+    $('#bar').style.width = (left / 30 * 100) + '%';
+    $('#secs').textContent = Math.ceil(left) + 's';
+    if (left <= 0 && !refreshing) { refreshing = true; refreshToken().finally(() => { refreshing = false; }); }
+  }
+
+  async function loadList() {
+    const { data, error } = await sb.from('attendance').select('marked_at, profiles(full_name)').eq('session_id', sid).order('marked_at');
+    if (error) return note(error.message, true);
+    const ul = $('#present');
+    ul.replaceChildren();
+    for (const r of data) {
       const li = document.createElement('li');
-
-      const info = document.createElement('div');
-      info.className = 'info';
-      const text = document.createElement('p');
-      text.className = 'text';
-      text.textContent = item.text || '(text not recorded)';
-      const time = document.createElement('time');
-      const when = item.created ? new Date(item.created) : null;
-      time.textContent = when && !isNaN(when)
-        ? when.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '';
-      info.append(text, time);
-
-      const a = document.createElement('a');
-      a.href = item.url; a.target = '_blank'; a.rel = 'noopener';
-      const img = new Image();
-      img.loading = 'lazy'; img.src = item.url;
-      img.alt = 'QR code for: ' + (item.text || '').slice(0, 80);
-      a.append(img);
-
-      li.append(info, a);
-      list.append(li);
+      const name = document.createElement('span');
+      name.textContent = r.profiles?.full_name || 'Unnamed student';
+      const t = document.createElement('time');
+      t.textContent = new Date(r.marked_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      li.append(name, t); ul.append(li);
     }
+    $('#count').textContent = data.length + ' present';
   }
 
-  loadGallery();
+  function stopSession() {
+    clearInterval(timer);
+    if (channel) { sb.removeChannel(channel); channel = null; }
+  }
+
+  $('#end').addEventListener('click', async () => {
+    try { await api('/sessions/' + sid + '/end', { method: 'POST' }); } catch (e) { return note(e.message, true); }
+    stopSession(); sid = null;
+    $('#live').hidden = true; $('#setup').hidden = false; $('#start').disabled = false;
+    $('#present').replaceChildren(); $('#count').textContent = ''; note('Session ended.');
+  });
+
+  $('#copylink').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(scanUrl); $('#copylink').textContent = 'Copied'; setTimeout(() => { $('#copylink').textContent = 'Copy scan link'; }, 1500); }
+    catch (e) { note('Could not copy the link.', true); }
+  });
+
+  // ---------- student ----------
+  async function markAttendance() {
+    const el = $('#result');
+    el.classList.remove('error'); el.textContent = 'Marking attendance…';
+    try {
+      const r = await api('/attend', { method: 'POST', body: JSON.stringify({ session_id: scan.s, token: scan.t }) });
+      el.textContent = r.message + '. You can close this page.';
+    } catch (e) { el.textContent = e.message; el.classList.add('error'); }
+    history.replaceState(null, '', location.pathname);
+  }
+
+  init();
 </script>
 </body>
 </html>
