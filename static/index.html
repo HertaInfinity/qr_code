@@ -36,6 +36,14 @@
       #present li { display:flex; justify-content:space-between; gap:1rem; padding:.6rem 0; border-bottom:1px solid var(--line); }
       #present time { color:var(--muted); }
       .head { display:flex; justify-content:space-between; align-items:baseline; }
+      .gap { margin-top: 1rem; }
+      .cards { list-style: none; margin: 1rem 0 0; padding: 0; display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); }
+      .classbtn { width: 100%; text-align: left; }
+      .classbtn strong { display: block; font-size: 1.1rem; }
+      .classbtn span { color: var(--muted); font-weight: 400; }
+      #roster { list-style: none; margin: 0; padding: 0; }
+      #roster li { display: flex; justify-content: space-between; gap: 1rem; padding: .6rem 0; border-bottom: 1px solid var(--line); }
+      #roster .muted { color: var(--muted); }
     </style>
   </head>
 
@@ -84,12 +92,38 @@
         </form>
       </section>
 
-      <section id="v-teacher" class="view" hidden>
-        <div id="setup" class="card narrow">
-          <h2>Start a class session</h2>
-          <label for="class">Class</label><select id="class"></select>
-          <div class="actions"><button class="primary" id="start">Start session</button></div>
+      <section id="v-thome" class="view" hidden>
+        <div class="head"><h2>Your classes</h2><button class="primary" id="add-class">Add class</button></div>
+        <form id="class-form" class="card gap" hidden>
+          <label for="class-name">Class name</label><input id="class-name" required>
+          <div class="actions">
+            <button class="primary" type="submit">Create class</button>
+            <button type="button" id="cancel-class">Cancel</button>
+          </div>
+        </form>
+        <ul id="class-list" class="cards"></ul>
+        <p id="no-classes" class="gap" hidden>No classes yet. Click “Add class” to create one.</p>
+      </section>
+
+      <section id="v-tclass" class="view" hidden>
+        <div class="head">
+          <h2 id="class-title"></h2>
+          <div class="actions">
+            <button id="back-home">All classes</button>
+            <button class="primary" id="start-session">Start session</button>
+          </div>
         </div>
+        <div class="card gap">
+          <p>Join code: <strong id="join-code"></strong></p>
+          <div class="actions"><button id="copy-join">Copy join link</button></div>
+        </div>
+        <div class="card gap">
+          <h2>Students <span id="roster-count"></span></h2>
+          <ul id="roster"></ul>
+        </div>
+      </section>
+
+      <section id="v-teacher" class="view" hidden>
         <div id="live" class="grid" hidden>
           <div class="card">
             <img id="qr" alt="Attendance QR code. It changes every 30 seconds.">
@@ -107,9 +141,15 @@
         </div>
       </section>
 
-      <section id="v-student" class="view card narrow" hidden>
-        <h2>Mark attendance</h2>
-        <p id="result">Scan your teacher’s QR code with your phone camera to mark yourself present.</p>
+      <section id="v-student" class="view" hidden>
+        <div class="head"><h2>Your classes</h2></div>
+        <form id="join-form" class="card">
+          <label for="join-input">Join a class with a code</label>
+          <input id="join-input" autocapitalize="characters" maxlength="12" required>
+          <div class="actions"><button class="primary" type="submit">Join class</button></div>
+        </form>
+        <p id="result" class="gap">Scan your teacher’s QR code with your phone camera to mark yourself present.</p>
+        <ul id="my-classes" class="cards"></ul>
       </section>
 
       <section id="v-other" class="view card narrow" hidden>
@@ -126,6 +166,8 @@
       const $ = (s) => document.querySelector(s);
       const params = new URLSearchParams(location.search);
       const scan = { s: params.get('s'), t: params.get('t') };
+      const joinCode = params.get('join');
+      let currentClass = null;
       let sid = null, timer = null, channel = null, expiresAt = 0, refreshing = false, scanUrl = '';
 
       function note(text, isError = false) { const n = $('#note'); n.textContent = text; n.classList.toggle('error', isError); }
@@ -192,12 +234,14 @@
         try {
           const me = await api('/me');
           note('');
-          if (me.role === 'teacher') { show('v-teacher'); loadClasses(); }
+          if (me.role === 'teacher') loadTeacherHome();
           else if (me.role === 'student') {
             show('v-student');
             try { await api('/device', { method: 'POST', body: JSON.stringify({ device_id: deviceId() }) }); }
             catch (e) { const el = $('#result'); el.textContent = e.message; el.classList.add('error'); return; }
-            if (scan.s && scan.t) markAttendance();
+            loadStudentHome();
+            if (joinCode) { joinClass(joinCode); history.replaceState(null, '', location.pathname); }
+            else if (scan.s && scan.t) markAttendance();
           }
           else show('v-other');
         } catch (e) { note(e.message, true); show('v-login'); }
@@ -214,23 +258,78 @@
       $('#signout').addEventListener('click', async () => { stopSession(); await sb.auth.signOut(); note(''); show('v-login'); });
 
       // ---------- teacher ----------
-      async function loadClasses() {
-        const { data, error } = await sb.from('classes').select('id,name').order('name');
+      async function loadTeacherHome() {
+        show('v-thome');
+        const { data, error } = await sb.from('classes').select('id,name,join_code,enrollments(count)')
+          .order('created_at', { ascending: false });
         if (error) return note(error.message, true);
-        const sel = $('#class');
-        sel.replaceChildren();
-        for (const c of data) { const o = document.createElement('option'); o.value = c.id; o.textContent = c.name; sel.append(o); }
-        $('#start').disabled = !data.length;
-        if (!data.length) note('No classes yet. Ask an admin to create one for you.');
+        const ul = $('#class-list');
+        ul.replaceChildren();
+        $('#no-classes').hidden = data.length > 0;
+        for (const c of data) {
+          const li = document.createElement('li');
+          const b = document.createElement('button');
+          b.className = 'card classbtn';
+          const n = document.createElement('strong'); n.textContent = c.name;
+          const s = document.createElement('span');
+          s.textContent = (c.enrollments[0]?.count ?? 0) + ' students · code ' + c.join_code;
+          b.append(n, s);
+          b.addEventListener('click', () => openClass(c));
+          li.append(b); ul.append(li);
+        }
       }
 
-      $('#start').addEventListener('click', async () => {
-        $('#start').disabled = true;
+      async function openClass(c) {
+        currentClass = c; note('');
+        show('v-tclass');
+        $('#class-title').textContent = c.name;
+        $('#join-code').textContent = c.join_code;
+        const { data, error } = await sb.from('enrollments')
+          .select('joined_at, profiles(full_name, enrollment_no)').eq('class_id', c.id);
+        if (error) return note(error.message, true);
+        data.sort((a, b) => (a.profiles?.enrollment_no || '').localeCompare(b.profiles?.enrollment_no || '', undefined, { numeric: true }));
+        const ul = $('#roster');
+        ul.replaceChildren();
+        for (const r of data) {
+          const li = document.createElement('li');
+          const name = document.createElement('span'); name.textContent = r.profiles?.full_name || 'Unnamed student';
+          const roll = document.createElement('span'); roll.className = 'muted'; roll.textContent = r.profiles?.enrollment_no || '';
+          li.append(name, roll); ul.append(li);
+        }
+        $('#roster-count').textContent = data.length ? '(' + data.length + ')' : '';
+        if (!data.length) {
+          const li = document.createElement('li');
+          li.textContent = 'No students yet. Share the join code or link.';
+          ul.append(li);
+        }
+      }
+
+      $('#add-class').addEventListener('click', () => { $('#class-form').hidden = false; $('#class-name').focus(); });
+      $('#cancel-class').addEventListener('click', () => { $('#class-form').hidden = true; });
+      $('#class-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+          await api('/classes', { method: 'POST', body: JSON.stringify({ name: $('#class-name').value.trim() }) });
+          $('#class-form').hidden = true; $('#class-name').value = ''; note('');
+          loadTeacherHome();
+        } catch (err) { note(err.message, true); }
+      });
+      $('#back-home').addEventListener('click', loadTeacherHome);
+      $('#start-session').addEventListener('click', () => startSession(currentClass.id));
+      $('#copy-join').addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(location.origin + '/app?join=' + currentClass.join_code);
+          $('#copy-join').textContent = 'Copied';
+          setTimeout(() => { $('#copy-join').textContent = 'Copy join link'; }, 1500);
+        } catch (err) { note('Could not copy the link.', true); }
+      });
+
+      async function startSession(classId) {
         note('Starting session…');
         try {
-          const r = await api('/sessions', { method: 'POST', body: JSON.stringify({ class_id: $('#class').value }) });
+          const r = await api('/sessions', { method: 'POST', body: JSON.stringify({ class_id: classId }) });
           sid = r.session_id;
-          $('#setup').hidden = true; $('#live').hidden = false;
+          show('v-teacher'); $('#live').hidden = false;
           await refreshToken();
           note('');
           loadList();
@@ -238,8 +337,8 @@
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'attendance', filter: 'session_id=eq.' + sid }, loadList)
             .subscribe();
           timer = setInterval(tick, 250);
-        } catch (e) { note(e.message, true); $('#start').disabled = false; }
-      });
+        } catch (e) { note(e.message, true); }
+      }
 
       async function refreshToken() {
         try {
@@ -283,8 +382,9 @@
       $('#end').addEventListener('click', async () => {
         try { await api('/sessions/' + sid + '/end', { method: 'POST' }); } catch (e) { return note(e.message, true); }
         stopSession(); sid = null;
-        $('#live').hidden = true; $('#setup').hidden = false; $('#start').disabled = false;
-        $('#present').replaceChildren(); $('#count').textContent = ''; note('Session ended.');
+        $('#live').hidden = true; $('#present').replaceChildren(); $('#count').textContent = '';
+        note('Session ended.');
+        openClass(currentClass);
       });
 
       $('#copylink').addEventListener('click', async () => {
@@ -302,6 +402,35 @@
         } catch (e) { el.textContent = e.message; el.classList.add('error'); }
         history.replaceState(null, '', location.pathname);
       }
+
+      async function loadStudentHome() {
+        const { data, error } = await sb.from('enrollments').select('classes(id,name)').order('joined_at');
+        if (error) return note(error.message, true);
+        const ul = $('#my-classes');
+        ul.replaceChildren();
+        for (const r of data) {
+          const li = document.createElement('li');
+          li.className = 'card';
+          li.textContent = r.classes?.name || 'Class';
+          ul.append(li);
+        }
+      }
+
+      async function joinClass(code) {
+        const el = $('#result');
+        el.classList.remove('error'); el.textContent = 'Joining…';
+        try {
+          const r = await api('/classes/join', { method: 'POST', body: JSON.stringify({ code }) });
+          el.textContent = r.message;
+        } catch (e) { el.textContent = e.message; el.classList.add('error'); }
+        loadStudentHome();
+      }
+
+      $('#join-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        joinClass($('#join-input').value);
+        $('#join-input').value = '';
+      });
 
       init();
     </script>

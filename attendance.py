@@ -146,6 +146,45 @@ def register_device():
         raise
     return jsonify(ok=True)
 
+CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no look-alike characters
+
+
+def new_join_code():
+    return "".join(secrets.choice(CODE_CHARS) for _ in range(6))
+
+
+@bp.post("/classes")
+@require_role("teacher")
+def create_class():
+    name = str((request.get_json(silent=True) or {}).get("name") or "").strip()[:100]
+    if not name:
+        return jsonify(error="Class name required"), 400
+    for _ in range(5):  # retry in the unlikely event of a code clash
+        try:
+            row = supabase.table("classes").insert(
+                {"name": name, "teacher_id": g.user_id, "join_code": new_join_code()}).execute().data[0]
+            return jsonify(id=row["id"], join_code=row["join_code"]), 201
+        except APIError as e:
+            if not (getattr(e, "code", None) == "23505" or "duplicate" in str(e).lower()):
+                raise
+    return jsonify(error="Could not create class, try again"), 500
+
+
+@bp.post("/classes/join")
+@require_role("student")
+def join_class():
+    code = str((request.get_json(silent=True) or {}).get("code") or "").strip().upper()
+    rows = supabase.table("classes").select("id, name").eq("join_code", code).execute().data
+    if not rows:
+        return jsonify(error="No class found for that code"), 404
+    try:
+        supabase.table("enrollments").insert({"class_id": rows[0]["id"], "student_id": g.user_id}).execute()
+    except APIError as e:
+        if getattr(e, "code", None) == "23505" or "duplicate" in str(e).lower():
+            return jsonify(message="You are already in " + rows[0]["name"])
+        raise
+    return jsonify(message="Joined " + rows[0]["name"]), 201
+
 @bp.post("/attend")
 @require_role("student")
 def attend():
