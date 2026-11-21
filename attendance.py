@@ -65,11 +65,12 @@ def require_role(*roles):
                 user = None
             if user is None:
                 return jsonify(error="Invalid or expired login"), 401
-            rows = supabase.table("profiles").select("role").eq("id", user.id).execute().data
+            rows = supabase.table("profiles").select("role, device_id").eq("id", user.id).execute().data
             role = rows[0]["role"] if rows else None
             if role not in roles:
                 return jsonify(error="Not allowed"), 403
             g.user_id, g.role = user.id, role
+            g.device_id = rows[0]["device_id"]
             return fn(*args, **kwargs)
         return wrapper
     return deco
@@ -127,12 +128,32 @@ def end_session(session_id):
      .eq("id", session_id).execute())
     return jsonify(ok=True)
 
+@bp.post("/device")
+@require_role("student")
+def register_device():
+    device_id = str((request.get_json(silent=True) or {}).get("device_id") or "")[:64]
+    if len(device_id) < 16:
+        return jsonify(error="device_id required"), 400
+    if g.device_id == device_id:
+        return jsonify(ok=True)
+    if g.device_id:
+        return jsonify(error="This account is linked to another device. Ask your teacher to reset it."), 403
+    try:
+        supabase.table("profiles").update({"device_id": device_id}).eq("id", g.user_id).execute()
+    except APIError as e:
+        if getattr(e, "code", None) == "23505" or "duplicate" in str(e).lower():
+            return jsonify(error="This device is already linked to another student account."), 403
+        raise
+    return jsonify(ok=True)
 
 @bp.post("/attend")
 @require_role("student")
 def attend():
     body = request.get_json(silent=True) or {}
     session_id, token = body.get("session_id"), str(body.get("token") or "")
+    device_id = str(body.get("device_id") or "")
+    if not g.device_id or device_id != g.device_id:
+        return jsonify(error="This device is not linked to your account"), 403
     s = get_session(session_id)
     if not s or not s["is_active"]:
         return jsonify(error="This session is not active"), 404
@@ -143,7 +164,8 @@ def attend():
     if not valid_token(get_secret(session_id), session_id, token):
         return jsonify(error="QR code expired. Scan the current code."), 400
     try:
-        supabase.table("attendance").insert({"session_id": session_id, "student_id": g.user_id}).execute()
+        supabase.table("attendance").insert({"session_id": session_id, "student_id": g.user_id,
+                                     "device_id": device_id, "method": "qr"}).execute()
     except APIError as e:
         if getattr(e, "code", None) == "23505" or "duplicate" in str(e).lower():
             return jsonify(message="Already marked present")
