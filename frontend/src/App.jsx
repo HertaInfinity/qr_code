@@ -433,6 +433,41 @@ function Roster({ cls, sid, live, toast }) {
   );
 }
 
+function AttendanceCard({ c }) {
+  const pct = c.percent;
+  const color = pct === null ? 'inherit' : pct >= 75 ? 'success' : pct >= 50 ? 'warning' : 'error';
+  return (
+    <Card>
+      <Box sx={{ bgcolor: colorFor(c.class_id), color: '#fff', p: 2, height: 96, backgroundImage: pattern }}>
+        <Typography variant="h6" noWrap>{c.name}</Typography>
+      </Box>
+      <CardContent>
+        <Stack direction="row" alignItems="center" spacing={2}>
+          <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+            <CircularProgress variant="determinate" value={pct ?? 0} size={64} color={color} />
+            <Box sx={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}>
+              <Typography variant="body2" fontWeight={700}>{pct === null ? '–' : Math.round(pct) + '%'}</Typography>
+            </Box>
+          </Box>
+          <Box>
+            <Typography>{c.present} of {c.total} classes attended</Typography>
+            {pct !== null && pct < 75 && <Typography variant="body2" color="error">Below 75%</Typography>}
+          </Box>
+        </Stack>
+        {c.total === 0
+          ? <Typography color="text.secondary" variant="body2" mt={2}>No classes held yet.</Typography>
+          : (
+            <Stack direction="row" flexWrap="wrap" gap={0.75} mt={2}>
+              {c.days.map((d) => (
+                <Chip key={d.date} size="small" variant="outlined" label={fmtDate(d.date)} color={d.present ? 'success' : 'error'} />
+              ))}
+            </Stack>
+          )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function Student({ user, toast }) {
   const q = useRef(new URLSearchParams(location.search)).current;
   const [classes, setClasses] = useState(null);
@@ -441,8 +476,7 @@ function Student({ user, toast }) {
   const [res, setRes] = useState(null);
   const [blocked, setBlocked] = useState('');
   const load = useCallback(async () => {
-    const { data, error } = await sb.from('enrollments').select('classes(id,name)').order('joined_at');
-    if (error) toast(error.message); else setClasses(data.map((r) => r.classes).filter(Boolean));
+    try { setClasses((await api('/my-attendance')).classes); } catch (e) { toast(e.message); }
   }, []);
   const join = async (c) => {
     try { const r = await post('/classes/join', { code: c }); toast(r.message, 'success'); load(); } catch (e) { toast(e.message); }
@@ -481,7 +515,7 @@ function Student({ user, toast }) {
         <>
           <Typography color="text.secondary" mb={2}>To mark attendance, scan the teacher's QR code with your phone camera.</Typography>
           <Grid container spacing={2}>
-            {classes.map((c) => <Grid item xs={12} sm={6} md={4} key={c.id}><ClassCard c={c} sub="Enrolled" /></Grid>)}
+            {classes.map((c) => <Grid item xs={12} sm={6} md={4} key={c.class_id}><AttendanceCard c={c} /></Grid>)}
           </Grid>
         </>
       )}

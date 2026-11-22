@@ -234,6 +234,27 @@ def mark(sid):
         supabase.table("attendance").delete().eq("session_id", sid).eq("student_id", stu).execute()
     return jsonify(ok=True)
 
+@bp.get("/my-attendance")
+@require_role("student")
+def my_attendance():
+    enr = (supabase.table("enrollments").select("class_id, joined_at, classes(name)")
+           .eq("student_id", g.user_id).execute().data)
+    out = []
+    for e in enr:
+        cid = e["class_id"]
+        sessions = supabase.table("sessions").select("id, started_at").eq("class_id", cid).execute().data
+        sdate = {s["id"]: ist_date(s["started_at"]) for s in sessions}
+        rows = (supabase.table("attendance").select("session_id, student_id")
+                .in_("session_id", list(sdate)).execute().data) if sdate else []
+        held = {sdate[r["session_id"]] for r in rows}  # a date counts once anyone was present
+        mine = {sdate[r["session_id"]] for r in rows if r["student_id"] == g.user_id}
+        joined = ist_date(e["joined_at"])
+        days = [{"date": d.isoformat(), "present": d in mine} for d in sorted(held) if d >= joined]
+        here = sum(x["present"] for x in days)
+        out.append({"class_id": cid, "name": (e.get("classes") or {}).get("name", "Class"),
+                    "days": days, "total": len(days), "present": here,
+                    "percent": round(100 * here / len(days), 1) if days else None})
+    return jsonify(classes=out)
 
 @bp.post("/attend")
 @require_role("student")
